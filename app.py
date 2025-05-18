@@ -68,11 +68,6 @@ class CloudRunWebhookAuth:
         """
         @wraps(f)
         def decorated_function(*args, **kwargs) -> Response:
-            # In debug mode, allow test header for development
-            if app.debug and request.headers.get('X-Test-Mode') == 'true':
-                request.auth_payload = {'email': 'test@example.run.app', 'test_mode': True}
-                return f(*args, **kwargs)
-                
             auth_header = request.headers.get('Authorization')
             
             if not auth_header or not auth_header.startswith('Bearer '):
@@ -112,18 +107,8 @@ def home():
         'message': 'Welcome to the Webhook Authentication Service',
         'endpoints': {
             '/': 'This help message',
-            '/webhook': 'POST endpoint for authenticated webhooks',
-            '/test': 'GET endpoint to check service health'
+            '/webhook': 'POST endpoint for authenticated webhooks'
         }
-    })
-
-@app.route('/test')
-def test():
-    """Test endpoint that doesn't require authentication"""
-    return jsonify({
-        'status': 'ok',
-        'message': 'Service is running',
-        'debug_mode': app.debug
     })
 
 @app.route('/webhook', methods=['POST'])
