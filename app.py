@@ -5,6 +5,11 @@ import jwt
 from google.oauth2 import id_token
 from google.auth.transport import requests
 from flask import Flask, request, jsonify, Response
+from dotenv import load_dotenv
+import os
+
+# Load environment variables
+load_dotenv()
 
 class CloudRunWebhookAuth:
     def __init__(self, project_number: str, service_id: str, region: str):
@@ -63,6 +68,11 @@ class CloudRunWebhookAuth:
         """
         @wraps(f)
         def decorated_function(*args, **kwargs) -> Response:
+            # In debug mode, allow test header for development
+            if app.debug and request.headers.get('X-Test-Mode') == 'true':
+                request.auth_payload = {'email': 'test@example.run.app', 'test_mode': True}
+                return f(*args, **kwargs)
+                
             auth_header = request.headers.get('Authorization')
             
             if not auth_header or not auth_header.startswith('Bearer '):
@@ -86,9 +96,6 @@ class CloudRunWebhookAuth:
 
 
 # Example usage with Flask
-import os
-from flask import Flask, request, jsonify
-
 app = Flask(__name__)
 
 # Initialize authentication
@@ -97,6 +104,27 @@ auth = CloudRunWebhookAuth(
     service_id=os.getenv('SERVICE_ID'),
     region=os.getenv('REGION')
 )
+
+@app.route('/')
+def home():
+    return jsonify({
+        'status': 'ok',
+        'message': 'Welcome to the Webhook Authentication Service',
+        'endpoints': {
+            '/': 'This help message',
+            '/webhook': 'POST endpoint for authenticated webhooks',
+            '/test': 'GET endpoint to check service health'
+        }
+    })
+
+@app.route('/test')
+def test():
+    """Test endpoint that doesn't require authentication"""
+    return jsonify({
+        'status': 'ok',
+        'message': 'Service is running',
+        'debug_mode': app.debug
+    })
 
 @app.route('/webhook', methods=['POST'])
 @auth.require_auth
